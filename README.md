@@ -1,14 +1,52 @@
-# Source to Binary (RISC-V C Program)
+#  Demonstrating Const Pointers in C (Introduction to C Programming)  
 
-This task demonstrates the step-by-step compilation process of a C program into a RISC-V binary using a `Makefile`. 
- 
-The process is broken down into four stages: **Preprocessing, Compiling, Assembling, and Linking**.
+This task demonstrates the **differences between**:  
+- **Pointer to const** (`const int *ptr`)  
+- **Const pointer** (`int * const ptr`)  
+- **Const pointer to const** (`const int * const ptr`)  
+
+The program also uses a **global array of integers** representing configuration parameters. It provides functionality to **display**, **update**, and **audit** these parameters, showcasing how different const pointer types behave in C.  
 
 ---
 
-## Compilation Stages
+## Program Structure
+- `src/main.c` → Contains the main program logic.  
+- `src/other.c` → Contains function implementations (`displayConfig`, `updateConfig`, `auditConfig`).  
+- `include/header.h` → Contains macro definitions (e.g., `CONFIG_SIZE`) and function declarations.  
+- `Makefile` → Automates building, running, cleaning, and showing help.  
 
-### 1. Preprocessing
-In this stage, the headers and macros in the C code are expanded and stored in a file with the `.i` extension.  
+---
+
+## Usage
+
+### 1. Build
+Compile the program into an executable named `main`:
 ```bash
-make preprocessor
+make build
+```
+
+### 2. Run
+Run the program using the executable generated:
+```bash
+make run
+```
+
+### 3. Clean
+Remove the compiled executable:
+```bash
+make clean
+```
+
+### 4. Help
+Display the list of available targets:
+```bash
+make help
+```
+
+### Shortcuts
+To build and run in one step
+```bash
+make
+```
+
+---
