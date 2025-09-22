@@ -1,52 +1,83 @@
-#  Demonstrating Const Pointers in C (Introduction to C Programming)  
+# RISC-V Caller-Callee Register Convention Demonstration
 
-This task demonstrates the **differences between**:  
-- **Pointer to const** (`const int *ptr`)  
-- **Const pointer** (`int * const ptr`)  
-- **Const pointer to const** (`const int * const ptr`)  
-
-The program also uses a **global array of integers** representing configuration parameters. It provides functionality to **display**, **update**, and **audit** these parameters, showcasing how different const pointer types behave in C.  
-
----
-
-## Program Structure
-- `src/main.c` → Contains the main program logic.  
-- `src/other.c` → Contains function implementations (`displayConfig`, `updateConfig`, `auditConfig`).  
-- `include/header.h` → Contains macro definitions (e.g., `CONFIG_SIZE`) and function declarations.  
-- `Makefile` → Automates building, running, cleaning, and showing help.  
+- Author:  Aman Murad
+- Company: 10xEngineers Technologies (Pvt.) Ltd.
+- Date:    2025-09-12 
+- Module:  R2: Intro to RISC-V Programming  
+- Section: RISC-V Unprivileged ISA  
+- Task 2:  RISC-V Caller-Callee saved registers
 
 ---
 
-## Usage
+## Description
 
-### 1. Build
-Compile the program into an executable named `main`:
+This project demonstrates the RISC-V calling convention and register preservation rules between caller and callee functions. It showcases proper stack management, register spilling, and the distinction between caller-saved and callee-saved registers.
+
+- **Caller-saved registers** (t0-t6): Preserved by the caller if needed across function calls
+- **Callee-saved registers** (s0-s11): Preserved by the callee across function boundaries  
+- **Stack frame management**: Proper allocation/deallocation and register spilling
+- **Function calling convention**: Argument passing (a0-a7) and return values (a0, a1)
+
+---
+
+## Structure
+
+```
+project/
+│
+├─ src/
+│   ├─ main.s          # Main program with caller/callee demonstration
+│   ├─ lib.s           # Utility functions (print, string operations)
+│   ├─ syscalls.s      # System call implementations
+│   ├─ regs.s          # Register definitions and constants
+│   └─ riscv.ld        # Linker script
+│
+├─ build/              # Output directory for compiled objects
+│
+├─ Makefile            # Build automation
+└─ README.md           # This file
+```
+
+---
+
+## Register Usage
+
+| Register | Type          | Purpose                          | Preserved by |
+|----------|---------------|----------------------------------|--------------|
+| `s1`     | Callee-saved  | Holds value 190                  | Callee       |
+| `t0`     | Caller-saved  | Holds value 405                  | Caller       |
+| `a0`     | Argument/Return | Function argument (150) → Return (160) | N/A        |
+| `ra`     | Special       | Return address                   | Caller       |
+
+---
+
+## Makefile Usage
+
+### Build the program
 ```bash
 make build
 ```
+- Assembles `main.s` into `main.o`  
+- Links into the binary `build/main`  
+- Produces disassembly `build/main.dis`
 
-### 2. Run
-Run the program using the executable generated:
+### Run on Spike (bare-metal)
 ```bash
 make run
 ```
+- Executes `build/main` on Spike using RV32IM Zicsr ISA  
+- Prints the output of our program
 
-### 3. Clean
-Remove the compiled executable:
+### Clean build artifacts
 ```bash
 make clean
 ```
+- Removes `build/` directory and all compiled files
 
-### 4. Help
-Display the list of available targets:
+### Help
 ```bash
 make help
 ```
-
-### Shortcuts
-To build and run in one step
-```bash
-make
-```
+- Displays the target menu and usage instructions
 
 ---
