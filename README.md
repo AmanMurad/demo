@@ -27,23 +27,26 @@ V(i) = V(i-1) + V(i-2), for i = 2, 3, ...
 ---
 
 ## Structure
-
+```
 project/
 │
 ├─ src/
-├─ main.s # Main program computing Fibonacci sequence
-├─ lib.s # Utility functions (print, string output)
-├─ syscalls.s # System call implementations (tohost_exit, printing)
-├─ regs.s # Register definitions and constants
-├─ macro.s # Reusable macros
-├─ startup.s # Startup and reset code
-├─ trap.s # Trap/exception handlers
-└─ riscv.ld # Linker script
+│ ├─ main.s # Main program computing Fibonacci sequence
+│ ├─ lib.s # Utility functions (print, string output)
+│ ├─ syscalls.s # System call implementations (tohost_exit, printing)
+│ ├─ regs.s # Register definitions and constants
+│ ├─ macro.s # Reusable macros
+│ ├─ startup.s # Startup and reset code
+│ ├─ trap.s # Trap/exception handlers
+│ └─ riscv.ld # Linker script
 │
 ├─ build/ # Output directory for compiled objects and binary
 │
 ├─ Makefile # Build automation
 └─ README.md # This file
+```
+
+---
 
 ## Register Usage
 
