@@ -17,14 +17,6 @@ Correct behavior is verified using **ECALLs** and **mcause-based trap handling**
 The test **always exits in Machine mode**, as required by RISC-V compliance-style tests.
 
 ---
-```
-project/
-│
-├─ test.S      # RISC-V bare-metal test program (entry + logic)
-├─ link.ld     # Linker script (memory layout, sections, symbols)
-├─ Makefile    # Build, disassembly, and Spike run automation
-└─ README.md   # Project documentation
-```
 
 ## Objectives
 
