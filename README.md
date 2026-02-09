@@ -1,99 +1,184 @@
-# RISC-V Fibonacci Sequence – Array Computation
+# RISC-V Privilege Mode Switching and Trap Handling Test
 
-- Author:  Aman Murad  
-- Company: 10xEngineers Technologies (Pvt.) Ltd.  
-- Date:    2025-09-14  
-- Module:  R2: Intro to RISC-V Programming – v2  
-- Section: RISC-V Unprivileged ISA  
-- Task 4:  Assembly program that prints the first N Fibonacci numbers  
+## Author
+**Aman Murad**
 
----
-
-## Description
-
-Write a **RISC-V assembly program** that computes the first 12 numbers in the Fibonacci sequence and stores the result in a finite vector (i.e., array) `V` of length `N = 12`.  
-
-The Fibonacci sequence is defined as:
-
-V(0) = 0
-V(1) = 1
-V(i) = V(i-1) + V(i-2), for i = 2, 3, ...
-
-- The program **statically defines** the dimension of the vector (`N`) in the `.data` section.  
-- First two Fibonacci numbers (`0` and `1`) are initialized in memory.  
-- Remaining numbers are computed in a loop and stored in `V`.  
-- The sequence is printed one number per line using the helper function `print_unsigned_ln`.  
+## Module
+RISC-V Architecture Test
 
 ---
 
-## Structure
+## Overview
+
+This test verifies **correct privilege mode switching and trap handling** in a RISC-V system using **Machine (M), Supervisor (S), and User (U)** modes.
+
+The program starts execution in **Machine mode**, installs a **machine-mode trap handler**, and demonstrates controlled transitions between privilege modes using **standard RISC-V mechanisms**.  
+Correct behavior is verified using **ECALLs** and **mcause-based trap handling**.  
+The test **always exits in Machine mode**, as required by RISC-V compliance-style tests.
+
+---
+
+project/
+│
+├─ test.S      # RISC-V bare-metal test program (entry + logic)
+├─ link.ld     # Linker script (memory layout, sections, symbols)
+├─ Makefile    # Build, disassembly, and Spike run automation
+└─ README.md   # Project documentation
+
+
+## Objectives
+
+- Start execution in **Machine mode**
+- Implement a **privilege switching function** callable from Machine mode
+- Implement a **Machine-mode trap handler** for ECALLs
+- Switch execution:
+  - Machine → Supervisor
+  - Supervisor → User (standard method)
+  - User → Supervisor (via trap)
+  - Supervisor → Machine (via trap)
+- Exit the test in **Machine mode** with a PASS signature
+
+---
+
+## Privilege Switching Mechanisms Used
+
+The test uses the following **RISC-V CSRs and instructions**:
+
+- `mstatus.MPP` — selects next privilege mode after `mret`
+- `mepc` — return address for `mret`
+- `sstatus.SPP` — selects next privilege mode after `sret`
+- `sepc` — return address for `sret`
+- `mtvec` — machine trap vector
+- `mcause` — identifies trap reason
+- `ecall` — generates environment call exception
+- `mret` / `sret` — return from trap or privilege switch
+
+---
+
+## Implemented Components
+
+### 1. `switch_mode(a0)` — Machine-mode privilege switch function
+
+- **Callable only from Machine mode**
+- Uses `mstatus.MPP`, `mepc`, and `mret`
+
+| Argument (`a0`) | Effect |
+|---------------|-------|
+| `0` | Switch Machine → Supervisor |
+| `1` | Switch Machine → User |
+
+---
+
+### 2. Machine-mode Trap Handler (`trap_vector`)
+
+The trap handler executes in **Machine mode** and handles ECALLs originating from lower privilege levels.
+
+| ECALL Source | `mcause` | Return Mode |
+|-------------|----------|-------------|
+| User mode | `8` | Supervisor |
+| Supervisor mode | `9` | Machine |
+
+The handler:
+- Reads `mcause` and `mepc`
+- Programs `mstatus.MPP`
+- Advances `mepc` to skip the ECALL
+- Executes `mret` to return to the correct mode
+
+---
+
+### 3. Supervisor → User Mode Switch (Standard Method)
+
+While in **Supervisor mode**, switching to User mode is performed using:
+
+- `sstatus.SPP` (cleared to 0)
+- `sepc` (set to user entry)
+- `sret`
+
+This follows the **standard RISC-V privilege return mechanism**.
+
+---
+
+## Program Execution Flow
+
+1. Program starts in **Machine mode** at `_start`
+2. Control jumps to `main`
+3. Machine trap handler address is written to `mtvec`
+4. `switch_mode(0)` switches **Machine → Supervisor**
+5. From Supervisor mode:
+   - `switch_to_user` switches **Supervisor → User** using `sret`
+6. In User mode:
+   - `ecall` triggers a trap to Machine mode
+   - Trap handler returns execution to **Supervisor mode**
+7. In Supervisor mode:
+   - `ecall` triggers another trap
+   - Trap handler returns execution to **Machine mode**
+8. Test exits in Machine mode by writing **PASS signature** to `tohost`
+
+---
+
+## Test Completion Signaling
+
+The test communicates its result using a **memory-mapped `tohost` register**, which is monitored by the simulator.
+
+### PASS
+```asm
+li gp, 0x55555555
+sw gp, tohost, t0
+```
+
+### FAIL
+```asm
+li gp, 0xdeadbeef
+sw gp, tohost, t0
+```
+
+---
+
+## File Structure
 ```
 project/
 │
-├─ src/
-│ ├─ main.s # Main program computing Fibonacci sequence
-│ ├─ lib.s # Utility functions (print, string output)
-│ ├─ syscalls.s # System call implementations (tohost_exit, printing)
-│ ├─ regs.s # Register definitions and constants
-│ ├─ macro.s # Reusable macros
-│ ├─ startup.s # Startup and reset code
-│ ├─ trap.s # Trap/exception handlers
-│ └─ riscv.ld # Linker script
-│
-├─ build/ # Output directory for compiled objects and binary
-│
-├─ Makefile # Build automation
-└─ README.md # This file
+├─ test.S      # RISC-V bare-metal test program (entry + logic)
+├─ link.ld     # Linker script (memory layout, sections, symbols)
+├─ Makefile    # Build, disassembly, and Spike run automation
+└─ README.md   # Project documentation
 ```
-
----
-
-## Register Usage
-
-| Register | Type           | Purpose                                  | Preserved by |
-|----------|----------------|------------------------------------------|--------------|
-| `s0`     | Callee-saved   | Base address of Fibonacci array `V`      | Callee       |
-| `s1`     | Callee-saved   | Length of Fibonacci sequence `N`         | Callee       |
-| `s2`     | Callee-saved   | Loop index                               | Callee       |
-| `t0-t6`  | Temporary      | Used for address and value computations  | Caller       |
-| `a0`     | Argument/Return| Argument to `print_unsigned_ln` / exit code | N/A      |
-| `ra`     | Return address | Saved/restored across main calls         | Callee       |
-| `sp`     | Stack pointer  | Stack frame management                    | N/A          |
-
----
-
-## Code Working
-
-1. Load base address of array `V` and sequence length `N` from memory.  
-2. Initialize loop index `i = 2`.  
-3. Compute Fibonacci numbers using the formula `V(i) = V(i-1) + V(i-2)` and store in `V[i]`.  
-4. Repeat until `i >= N`.  
-5. Reset loop index for printing.  
-6. Print each number of the sequence using `print_unsigned_ln`.  
-7. Exit the program via `tohost_exit`.  
 
 ---
 
 ### Build the program
 ```bash
-make build
+make
 ```
-- Assembles `main.s` into `main.o`  
-- Links into the binary `build/main`  
-- Produces disassembly `build/main.dis`
+- Assembles and links `test.S` using the RISC-V GCC toolchain
+- Produces the ELF binary `test.elf`
+- Generates disassembly `test.dis`
+      
+### Generate Disassembly only
+```bash
+make disasm
+```
+- Uses riscv64-unknown-elf-objdump
+- Outputs full instruction-level disassembly to `test.dis`
 
-### Run on Spike (bare-metal)
+### Run on spike (bare-metal)
 ```bash
 make run
 ```
-- Executes `build/main` on Spike using RV32IM Zicsr ISA  
-- Prints the computed GCD to console
+- Runs `test.elf` on Spike
+- Enables: instruction logging and commit logging
+- Output files:
+    1. spike.out → program output
+    2. spike.log → execution trace
+- Searches for test status markers:
+    1. 0x55555555 → test pass
+    2. 0xdeadbeef → test fail
 
 ### Clean build artifacts
 ```bash
 make clean
 ```
-- Removes `build/` directory and all compiled files
+- Removes all compiled, output and disassembly files
 
 ### Help
 ```bash
