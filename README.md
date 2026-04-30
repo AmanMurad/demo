@@ -1,181 +1,206 @@
-# RISC-V Privilege Mode Switching and Trap Handling Test
+# Adding Zacas Instructions to ExceptionsZaamo Coverage
 
-## Author
-**Aman Murad**
-
-## Module
-RISC-V Architecture Test
+## Reviewer's Comment Explanation
+Your reviewer is asking to add **Zacas atomic instructions** to the `ExceptionsZaamo_coverage.svh` file and the associated test generator to ensure proper coverage testing for illegal address alignments.
 
 ---
 
-## Overview
+## What is Zacas?
 
-This test verifies **correct privilege mode switching and trap handling** in a RISC-V system using **Machine (M), Supervisor (S), and User (U)** modes.
+**Zacas** is an atomic Compare-and-Swap (CAS) extension in RISC-V that complements the **Zaamo** (Atomic Memory Operations) extension. While Zaamo provides basic atomic operations (swap, add, and, or, xor, min, max), Zacas adds:
 
-The program starts execution in **Machine mode**, installs a **machine-mode trap handler**, and demonstrates controlled transitions between privilege modes using **standard RISC-V mechanisms**.  
-Correct behavior is verified using **ECALLs** and **mcause-based trap handling**.  
-The test **always exits in Machine mode**, as required by RISC-V compliance-style tests.
-
----
-
-## Objectives
-
-- Start execution in **Machine mode**
-- Implement a **privilege switching function** callable from Machine mode
-- Implement a **Machine-mode trap handler** for ECALLs
-- Switch execution:
-  - Machine → Supervisor
-  - Supervisor → User (standard method)
-  - User → Supervisor (via trap)
-  - Supervisor → Machine (via trap)
-- Exit the test in **Machine mode** with a PASS signature
+- **CAS instructions** (Compare-and-Swap operations)
+- Operations on different data widths: word (32-bit), double-word (64-bit), half-word (16-bit), and byte (8-bit)
 
 ---
 
-## Privilege Switching Mechanisms Used
+## Current Structure Analysis
 
-The test uses the following **RISC-V CSRs and instructions**:
+### What You Have Now:
 
-- `mstatus.MPP` — selects next privilege mode after `mret`
-- `mepc` — return address for `mret`
-- `sstatus.SPP` — selects next privilege mode after `sret`
-- `sepc` — return address for `sret`
-- `mtvec` — machine trap vector
-- `mcause` — identifies trap reason
-- `ecall` — generates environment call exception
-- `mret` / `sret` — return from trap or privilege switch
+Your `ExceptionsZaamo_cg` covergroup in `ExceptionsZaamo_coverage.svh` includes:
+- Basic AMO instructions: `amoswap`, `amoadd`, `amoand`, `amoor`, `amoxor`, `amomax`, `amomin`
+- Support for different widths: `.w` (32-bit), `.d` (64-bit), `.h` (16-bit), `.b` (8-bit)
+- Coverage for address misalignment
+- Coverage for access faults
 
----
+### What's Missing:
 
-## Implemented Components
-
-### 1. `switch_mode(a0)` — Machine-mode privilege switch function
-
-- **Callable only from Machine mode**
-- Uses `mstatus.MPP`, `mepc`, and `mret`
-
-| Argument (`a0`) | Effect |
-|---------------|-------|
-| `0` | Switch Machine → Supervisor |
-| `1` | Switch Machine → User |
+**Zacas instructions** are NOT covered. The Zacas extension provides:
+- `cas.w` - Compare-and-swap word
+- `cas.d` - Compare-and-swap doubleword (RV64 only)
+- `cas.h` - Compare-and-swap half-word (ZABHA extension support)
+- `cas.b` - Compare-and-swap byte (ZABHA extension support)
 
 ---
 
-### 2. Machine-mode Trap Handler (`trap_vector`)
+## Implementation Steps
 
-The trap handler executes in **Machine mode** and handles ECALLs originating from lower privilege levels.
+### Step 1: Update the SystemVerilog Coverage File
 
-| ECALL Source | `mcause` | Return Mode |
-|-------------|----------|-------------|
-| User mode | `8` | Supervisor |
-| Supervisor mode | `9` | Machine |
+Add Zacas instructions to the covergroup in `ExceptionsZaamo_coverage.svh`:
 
-The handler:
-- Reads `mcause` and `mepc`
-- Programs `mstatus.MPP`
-- Advances `mepc` to skip the ECALL
-- Executes `mret` to return to the correct mode
+```systemverilog
+`define COVER_EXCEPTIONSZAAMO
+covergroup ExceptionsZaamo_cg with function sample(ins_t ins);
+    option.per_instance = 0;
 
----
+    // building blocks for the main coverpoints
+    amo_instrs: coverpoint ins.current.insn {
+        wildcard bins amoswap_w = {AMOSWAP_W};
+        wildcard bins amoadd_w  = {AMOADD_W};
+        wildcard bins amoand_w  = {AMOAND_W};
+        wildcard bins amoor_w   = {AMOOR_W};
+        wildcard bins amoxor_w  = {AMOXOR_W};
+        wildcard bins amomax_w  = {AMOMAX_W};
+        wildcard bins amomaxu_w = {AMOMAXU_W};
+        wildcard bins amomin_w  = {AMOMIN_W};
+        wildcard bins amominu_w = {AMOMINU_W};
+        
+        // ADD ZACAS INSTRUCTIONS HERE
+        wildcard bins cas_w     = {CAS_W};
+        
+        `ifdef XLEN64
+            wildcard bins amoswap_d = {AMOSWAP_D};
+            wildcard bins amoadd_d  = {AMOADD_D};
+            wildcard bins amoand_d  = {AMOAND_D};
+            wildcard bins amoor_d   = {AMOOR_D};
+            wildcard bins amoxor_d  = {AMOXOR_D};
+            wildcard bins amomax_d  = {AMOMAX_D};
+            wildcard bins amomaxu_d = {AMOMAXU_D};
+            wildcard bins amomin_d  = {AMOMIN_D};
+            wildcard bins amominu_d = {AMOMINU_D};
+            
+            // ADD 64-BIT ZACAS HERE
+            wildcard bins cas_d     = {CAS_D};
+        `endif
+        
+        `ifdef ZABHA_SUPPORTED
+            wildcard bins amoswap_h = {AMOSWAP_H};
+            wildcard bins amoadd_h  = {AMOADD_H};
+            wildcard bins amoand_h  = {AMOAND_H};
+            wildcard bins amoor_h   = {AMOOR_H};
+            wildcard bins amoxor_h  = {AMOXOR_H};
+            wildcard bins amomax_h  = {AMOMAX_H};
+            wildcard bins amomaxu_h = {AMOMAXU_H};
+            wildcard bins amomin_h  = {AMOMIN_H};
+            wildcard bins amominu_h = {AMOMINU_H};
+            wildcard bins amoswap_b = {AMOSWAP_B};
+            wildcard bins amoadd_b  = {AMOADD_B};
+            wildcard bins amoand_b  = {AMOAND_B};
+            wildcard bins amoor_b   = {AMOOR_B};
+            wildcard bins amoxor_b  = {AMOXOR_B};
+            wildcard bins amomax_b  = {AMOMAX_B};
+            wildcard bins amomaxu_b = {AMOMAXU_B};
+            wildcard bins amomin_b  = {AMOMIN_B};
+            wildcard bins amominu_b = {AMOMINU_B};
+            
+            // ADD ZABHA-BASED ZACAS HERE
+            wildcard bins cas_h     = {CAS_H};
+            wildcard bins cas_b     = {CAS_B};
+        `endif
+    }
+    
+    adr_LSBs: coverpoint ins.current.rs1_val[4:0]  {
+        // auto fills 00000 through 11111
+    }
+    
+    // main coverpoints
+    cp_amo_address_misaligned:  cross amo_instrs, adr_LSBs;
 
-### 3. Supervisor → User Mode Switch (Standard Method)
+    `ifdef RVMODEL_ACCESS_FAULT_ADDRESS
+        illegal_address: coverpoint ins.current.rs1_val {
+            bins illegal = {`RVMODEL_ACCESS_FAULT_ADDRESS};
+        }
+        cp_amo_access_fault:        cross amo_instrs, illegal_address;
+    `endif
 
-While in **Supervisor mode**, switching to User mode is performed using:
-
-- `sstatus.SPP` (cleared to 0)
-- `sepc` (set to user entry)
-- `sret`
-
-This follows the **standard RISC-V privilege return mechanism**.
-
----
-
-## Program Execution Flow
-
-1. Program starts in **Machine mode** at `_start`
-2. Control jumps to `main`
-3. Machine trap handler address is written to `mtvec`
-4. `switch_mode(0)` switches **Machine → Supervisor**
-5. From Supervisor mode:
-   - `switch_to_user` switches **Supervisor → User** using `sret`
-6. In User mode:
-   - `ecall` triggers a trap to Machine mode
-   - Trap handler returns execution to **Supervisor mode**
-7. In Supervisor mode:
-   - `ecall` triggers another trap
-   - Trap handler returns execution to **Machine mode**
-8. Test exits in Machine mode by writing **PASS signature** to `tohost`
-
----
-
-## Test Completion Signaling
-
-The test communicates its result using a **memory-mapped `tohost` register**, which is monitored by the simulator.
-
-### PASS
-```asm
-li gp, 0x55555555
-sw gp, tohost, t0
-```
-
-### FAIL
-```asm
-li gp, 0xdeadbeef
-sw gp, tohost, t0
+endgroup
 ```
 
 ---
 
-## File Structure
+### Step 2: Update the Python Test Generator
+
+Add Zacas instructions to `ExceptionsZaamo.py`:
+
+**In `_generate_amo_address_misaligned_tests()` function:**
+
+```python
+ops = [
+    "amoswap.", "amoadd.", "amoxor.", "amoand.", "amoor.", 
+    "amomin.", "amomax.", "amominu.", "amomaxu.",
+    "cas."  # ADD THIS LINE FOR ZACAS
+]
 ```
-project/
-│
-├─ test.S      # RISC-V bare-metal test program (entry + logic)
-├─ link.ld     # Linker script (memory layout, sections, symbols)
-├─ Makefile    # Build, disassembly, and Spike run automation
-└─ README.md   # Project documentation
+
+**After the `amomaxu.` line in both test generation functions:**
+
+```python
+# For 32-bit operations (always supported with Zacas)
+ops = ["amoswap.", "amoadd.", "amoxor.", "amoand.", "amoor.", "amomin.", "amomax.", "amominu.", "amomaxu.", "cas."]
 ```
+
+The CAS instruction will automatically be tested with:
+- `.w` (word/32-bit)
+- `.d` (double-word/64-bit) - RV64 only
+- `.h` (half-word/16-bit) - ZABHA only
+- `.b` (byte/8-bit) - ZABHA only
 
 ---
 
-### Build the program
-```bash
-make
-```
-- Assembles and links `test.S` using the RISC-V GCC toolchain
-- Produces the ELF binary `test.elf`
-- Generates disassembly `test.dis`
-      
-### Generate Disassembly only
-```bash
-make disasm
-```
-- Uses riscv64-unknown-elf-objdump
-- Outputs full instruction-level disassembly to `test.dis`
+### Step 3: Update YAML Coverage Configuration
 
-### Run on spike (bare-metal)
-```bash
-make run
-```
-- Runs `test.elf` on Spike
-- Enables: instruction logging and commit logging
-- Output files:
-    1. spike.out → program output
-    2. spike.log → execution trace
-- Searches for test status markers:
-    1. 0x55555555 → test pass
-    2. 0xdeadbeef → test fail
+In `coverpoints/norm/Zacas.yaml`, ensure you have a coverage point entry:
 
-### Clean build artifacts
-```bash
-make clean
+**Before (old):**
+```yaml
+- name: Zacas_amocas_rs1_addr_alignment
+  coverpoint: [""]
 ```
-- Removes all compiled, output and disassembly files
 
-### Help
-```bash
-make help
+**After (new):**
+```yaml
+- name: Zacas_amocas_rs1_addr_alignment
+  coverpoint: ["cp_align"]  # or the correct coverage point name
 ```
-- Displays the target menu and usage instructions
+
+This tells the coverage tracking system to monitor the `cp_align` coverage point (or whatever it's named in your SystemVerilog).
 
 ---
+
+## What "Address Misalignment" Coverage Means
+
+The reviewer wants to test that CAS instructions properly handle **misaligned addresses**:
+
+1. **Misaligned Access Testing**: Test CAS instructions with addresses that aren't naturally aligned
+   - Word (32-bit): address LSBs = any value (0-31)
+   - Double-word (64-bit): address LSBs = any value (0-31)
+   - Half-word (16-bit): address LSBs = any value (0-31)
+   - Byte (8-bit): address LSBs = any value (0-31)
+
+2. **Expected Behavior**: 
+   - Some alignments may cause address misalignment exceptions
+   - Others may be handled by the implementation
+   - The coverage tracks all 32 possible offset cases
+
+---
+
+## Checklist for PR Review Fix
+
+- [ ] Add `cas.w`, `cas.d`, `cas.h`, `cas.b` bins to `amo_instrs` coverpoint in `ExceptionsZaamo_coverage.svh`
+- [ ] Update the `ops` list in `_generate_amo_address_misaligned_tests()` to include `"cas."`
+- [ ] Update the `ops` list in `_generate_amo_access_fault_tests()` to include `"cas."`
+- [ ] Verify `ExceptionsZaamo.py` generates test cases for all CAS variants
+- [ ] Update `coverpoints/norm/Zacas.yaml` to point to correct coverage point names
+- [ ] Run tests to verify coverage collection works
+- [ ] Check that all test cases execute without errors
+
+---
+
+## Why This Matters
+
+- **Complete Coverage**: Ensures Zacas CAS instructions are tested for exception conditions
+- **Compliance**: Meets RISC-V specification requirements for atomic operations
+- **Regression Prevention**: Catches alignment-related bugs early
+- **Documentation**: Makes it clear which exception scenarios are tested
